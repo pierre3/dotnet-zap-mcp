@@ -1,0 +1,38 @@
+# OWASP ZAP daemon configuration
+#
+# This file is extracted from the dotnet-zap-mcp tool at runtime.
+# Do not edit directly - changes will be overwritten on tool update.
+
+services:
+  zap:
+    image: ghcr.io/zaproxy/zaproxy:stable
+    container_name: zap
+    restart: "no"
+    ports:
+      - "127.0.0.1:8090:8090"
+    environment:
+      - ZAP_API_KEY=${ZAP_API_KEY}
+    entrypoint: ["/bin/sh", "/zap/wrk/entrypoint.sh"]
+    command:
+      - zap.sh
+      - -daemon
+      - -host
+      - "0.0.0.0"
+      - -port
+      - "8090"
+      - -config
+      - "ajaxSpider.browserId=htmlunit"
+    volumes:
+      - ./entrypoint.sh:/zap/wrk/entrypoint.sh:ro
+      - ./zap-config.xml:/zap/wrk/template/zap-config.xml:ro
+      - zap-data:/zap/wrk/data
+    healthcheck:
+      test: ["CMD-SHELL",
+             "wget -qO- http://127.0.0.1:8090/JSON/core/view/version/?apikey=${ZAP_API_KEY} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  zap-data:

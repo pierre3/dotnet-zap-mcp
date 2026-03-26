@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ZapMcpServer</RootNamespace>
+
+    <!-- dotnet tool packaging -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>zap-mcp</ToolCommandName>
+
+    <!-- NuGet metadata -->
+    <PackageId>dotnet-zap-mcp</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>pierre3</Authors>
+    <Description>MCP server for OWASP ZAP. Enables AI agents (Claude, Copilot, etc.) to drive ZAP vulnerability scanning via the Model Context Protocol.</Description>
+    <PackageTags>mcp;owasp;zap;security;vulnerability-scanning;dotnet-tool</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/pierre3/dotnet-zap-mcp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/pierre3/dotnet-zap-mcp.git</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" Version="0.3.0-preview.4" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0-preview.5.25277.114" />
+  </ItemGroup>
+
+  <!-- Embed Docker assets as resources -->
+  <ItemGroup>
+    <EmbeddedResource Include="Docker\docker-compose.yml" LogicalName="docker-compose.yml" />
+    <EmbeddedResource Include="Docker\entrypoint.sh" LogicalName="entrypoint.sh" />
+    <EmbeddedResource Include="Docker\zap-config.xml" LogicalName="zap-config.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

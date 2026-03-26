@@ -1,0 +1,35 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "name": "io.github.pierre3/zap-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for OWASP ZAP vulnerability scanning with Docker management",
+  "title": "OWASP ZAP MCP Server",
+  "websiteUrl": "https://github.com/pierre3/dotnet-zap-mcp",
+  "packages": [
+    {
+      "registryType": "nuget",
+      "identifier": "dotnet-zap-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [],
+      "environmentVariables": [
+        {
+          "name": "ZAP_BASE_URL",
+          "description": "ZAP API base URL (default: http://localhost:8090)",
+          "required": false
+        },
+        {
+          "name": "ZAP_API_KEY",
+          "description": "ZAP API key. Auto-generated if not set and DockerComposeUp is used.",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "repository": {
+    "url": "https://github.com/pierre3/dotnet-zap-mcp",
+    "source": "github"
+  }
+}
