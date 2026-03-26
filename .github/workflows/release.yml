@@ -62,8 +62,8 @@ jobs:
 
       - name: Download mcp-publisher
         run: |
-          curl -fsSL -o mcp-publisher \
-            "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher-linux-amd64"
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" \
+            | tar xz mcp-publisher
           chmod +x mcp-publisher
 
       - name: Publish to MCP Registry
