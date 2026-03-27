@@ -67,6 +67,8 @@ jobs:
           chmod +x mcp-publisher
 
       - name: Publish to MCP Registry
-        run: ./mcp-publisher publish .mcp/server.json
+        run: |
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish .mcp/server.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
