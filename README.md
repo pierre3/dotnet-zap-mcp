@@ -1,6 +1,10 @@
 <!-- mcp-name: io.github.pierre3/zap-mcp -->
 # dotnet-zap-mcp
 
+[![NuGet](https://img.shields.io/nuget/v/dotnet-zap-mcp.svg)](https://www.nuget.org/packages/dotnet-zap-mcp)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/dotnet-zap-mcp.svg)](https://www.nuget.org/packages/dotnet-zap-mcp)
+[![Release](https://github.com/pierre3/dotnet-zap-mcp/actions/workflows/release.yml/badge.svg)](https://github.com/pierre3/dotnet-zap-mcp/actions/workflows/release.yml)
+
 MCP (Model Context Protocol) server for [OWASP ZAP](https://www.zaproxy.org/). Enables AI agents (Claude, GitHub Copilot, etc.) to drive ZAP vulnerability scanning via MCP.
 
 ## Features
