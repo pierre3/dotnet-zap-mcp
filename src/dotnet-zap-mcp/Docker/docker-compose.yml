@@ -26,6 +26,7 @@ services:
       - ./entrypoint.sh:/zap/wrk/entrypoint.sh:ro
       - ./zap-config.xml:/zap/wrk/template/zap-config.xml:ro
       - zap-data:/zap/wrk/data
+      - zap-home:/home/zap/.ZAP
     healthcheck:
       test: ["CMD-SHELL",
              "wget -qO- http://127.0.0.1:8090/JSON/core/view/version/?apikey=${ZAP_API_KEY} || exit 1"]
@@ -36,3 +37,4 @@ services:
 
 volumes:
   zap-data:
+  zap-home:

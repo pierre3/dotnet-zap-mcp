@@ -14,12 +14,33 @@ internal sealed class DockerComposeManager
     private readonly string _dockerDir;
     private readonly string _version;
 
+    /// <summary>
+    /// The container-internal path for shared data (reports, sessions, contexts).
+    /// Use this when constructing file paths for ZAP API calls that reference the container filesystem.
+    /// </summary>
+    public const string ContainerDataPath = "/zap/wrk/data";
+
+    /// <summary>
+    /// Subdirectory names under <see cref="ContainerDataPath"/>.
+    /// </summary>
+    public const string ReportsDir = "reports";
+    public const string SessionsDir = "sessions";
+    public const string ContextsDir = "contexts";
+
     public DockerComposeManager()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         _dockerDir = Path.Combine(home, ".zap-mcp", "docker");
         _version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0";
     }
+
+    /// <summary>
+    /// Returns the host-side path of the shared data volume directory.
+    /// Files written by ZAP to <see cref="ContainerDataPath"/> inside the container
+    /// can be read from this path on the host (when using a named volume, use
+    /// <c>docker cp</c> or inspect the volume mount point).
+    /// </summary>
+    public string GetDataDirectory() => Path.Combine(_dockerDir, "data");
 
     /// <summary>
     /// Returns the path to the Docker directory, extracting embedded resources if needed.
