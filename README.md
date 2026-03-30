@@ -23,7 +23,7 @@ dotnet tool install -g dotnet-zap-mcp
 ### Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for built-in ZAP container management)
+- Docker (Docker Engine or Docker Desktop) with `docker compose` support (for built-in ZAP container management)
 
 ## Configuration
 
