@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
   "name": "io.github.pierre3/zap-mcp",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "MCP server for OWASP ZAP vulnerability scanning with Docker management",
   "title": "OWASP ZAP MCP Server",
   "websiteUrl": "https://github.com/pierre3/dotnet-zap-mcp",
@@ -9,7 +9,7 @@
     {
       "registryType": "nuget",
       "identifier": "dotnet-zap-mcp",
-      "version": "1.0.2",
+      "version": "1.1.0",
       "transport": {
         "type": "stdio"
       },
