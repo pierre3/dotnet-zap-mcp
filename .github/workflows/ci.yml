@@ -25,6 +25,48 @@ jobs:
       - name: Build
         run: dotnet build --no-restore -c Release
 
+      - name: Unit Tests
+        run: dotnet test --no-build -c Release --filter "Category!=Integration" --logger "trx;LogFileName=unit-tests.trx"
+
+      - name: Start test containers
+        run: docker compose -f tests/docker/docker-compose.test.yml up -d --build
+
+      - name: Wait for ZAP healthy
+        run: |
+          echo "Waiting for ZAP to become healthy..."
+          for i in $(seq 1 60); do
+            if wget -qO- "http://127.0.0.1:8090/JSON/core/view/version/?apikey=test-api-key-for-ci" 2>/dev/null; then
+              echo ""
+              echo "ZAP is healthy!"
+              break
+            fi
+            echo "Attempt $i/60..."
+            sleep 5
+          done
+
+      - name: Wait for target app healthy
+        run: |
+          echo "Waiting for target app..."
+          for i in $(seq 1 30); do
+            if wget -qO- http://127.0.0.1:8080/health 2>/dev/null; then
+              echo ""
+              echo "Target app is healthy!"
+              break
+            fi
+            echo "Attempt $i/30..."
+            sleep 2
+          done
+
+      - name: Integration Tests
+        run: dotnet test --no-build -c Release --filter "Category=Integration" --logger "trx;LogFileName=integration-tests.trx"
+        timeout-minutes: 15
+        env:
+          CI: "true"
+
+      - name: Stop test containers
+        if: always()
+        run: docker compose -f tests/docker/docker-compose.test.yml down -v
+
       - name: Pack
         run: dotnet pack --no-build -c Release -o ./nupkg
 

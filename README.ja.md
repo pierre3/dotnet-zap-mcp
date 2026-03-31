@@ -23,7 +23,7 @@ dotnet tool install -g dotnet-zap-mcp
 ### 前提条件
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)（組み込みの ZAP コンテナ管理に必要）
+- Docker (Docker Engine または Docker Desktop)、`docker compose` 対応（組み込みの ZAP コンテナ管理に必要）
 
 ## 設定
 
@@ -218,6 +218,124 @@ MCP 設定に以下を追加してください：
 9. 完了後、エージェントが `DockerComposeDown` を呼び出し
 
 > **注意:** ZAP の設定（コンテキスト、認証、スキャンポリシー）は `zap-home` Docker ボリュームに永続化されます。設定を失うことなくコンテナの停止・再起動が可能です。
+
+## 試してみる（同梱の脆弱アプリを使用）
+
+このリポジトリには、ZAP スキャンを試すための意図的に脆弱な Web アプリケーションが含まれています。XSS、SQL インジェクション、CSRF、オープンリダイレクトなどの一般的な脆弱性が含まれており、ZAP が実際の検出結果を返します。
+
+### セットアップ
+
+```bash
+# ZAP と脆弱ターゲットアプリを起動
+docker compose -f tests/docker/docker-compose.test.yml up -d --build
+
+# 両コンテナが healthy になるまで待機
+docker compose -f tests/docker/docker-compose.test.yml ps
+```
+
+MCP クライアントからこの ZAP インスタンスに接続するよう設定します：
+
+```json
+{
+  "mcpServers": {
+    "zap": {
+      "command": "zap-mcp",
+      "env": {
+        "ZAP_BASE_URL": "http://localhost:8090",
+        "ZAP_API_KEY": "test-api-key-for-ci"
+      }
+    }
+  }
+}
+```
+
+> 脆弱アプリは Docker ネットワーク内から `http://target`（ZAP が使用）、ホストマシンからは `http://localhost:8080` でアクセスできます。
+
+### 例 1: クイックスキャン
+
+**エージェントへのプロンプト：**
+
+> http://target の脆弱性をスキャンしてください。Spider でクロールし、パッシブスキャンの完了を待って、アラートサマリーの表示と HTML レポートの生成をお願いします。
+
+**想定されるツール呼び出しフロー：**
+
+```
+GetVersion          → ZAP との接続を確認
+StartSpider         → url: "http://target"
+GetSpiderStatus     → 100% になるまでポーリング
+GetPassiveScanStatus → 残件 0 になるまでポーリング
+GetAlertsSummary    → baseUrl: "http://target"
+GetAlerts           → baseUrl: "http://target"
+GetHtmlReport       → レポート生成
+```
+
+ZAP は `/search`、`/login`、`/users`、`/about`、`/contact` などのページを発見し、パッシブスキャンでセキュリティヘッダーの欠如や CSRF 脆弱性などを報告します。
+
+### 例 2: 認証付きスキャン
+
+`/admin` ページはログインが必要です（ユーザー名: `admin`、パスワード: `password`）。認証付きスキャンにより、ZAP が保護されたページにアクセス可能になります。
+
+**エージェントへのプロンプト：**
+
+> http://target に対して認証付きスキャンを設定してください。ログインフォームは /login にあり、フィールドは "username" と "password" です（認証情報: admin / password）。ログイン成功の判定文字列は "Welcome, admin" です。認証設定後、認証済みユーザーでサイトを Spider し、Active Scan を実行してください。
+
+**想定されるツール呼び出しフロー：**
+
+```
+CreateContext                   → contextName: "target-auth"
+IncludeInContext                → regex: "http://target.*"
+SetAuthenticationMethod         → contextId, authMethodName: "formBasedAuthentication",
+                                  authMethodConfigParams: "loginUrl=http://target/login&loginRequestData=username%3D%7B%25username%25%7D%26password%3D%7B%25password%25%7D"
+SetLoggedInIndicator            → loggedInIndicatorRegex: "Welcome, admin"
+CreateUser                      → contextId, name: "admin"
+SetAuthenticationCredentials    → contextId, userId, authCredentialsConfigParams: "username=admin&password=password"
+SetUserEnabled                  → contextId, userId, enabled: true
+SetForcedUser                   → contextId, userId
+SetForcedUserModeEnabled        → enabled: true
+StartSpider                     → url: "http://target", contextName: "target-auth"
+GetSpiderStatus                 → 100% になるまでポーリング
+GetPassiveScanStatus            → 残件 0 になるまでポーリング
+StartActiveScan                 → url: "http://target"
+GetActiveScanStatus             → 100% になるまでポーリング
+GetAlertsSummary                → baseUrl: "http://target"
+GetAlerts                       → baseUrl: "http://target"
+SetForcedUserModeEnabled        → enabled: false
+```
+
+認証が設定されることで、ZAP は `/admin` にアクセスし、ログイン後のページの脆弱性も検査できるようになります。
+
+### 例 3: 本格的な脆弱性診断
+
+**エージェントへのプロンプト：**
+
+> http://target の包括的な脆弱性診断を実施してください。サイトをクロールし、Active Scan を実行した後、発見された脆弱性をリスクレベル別に詳しく報告してください。
+
+**想定されるツール呼び出しフロー：**
+
+```
+StartSpider          → url: "http://target", recurse: true
+GetSpiderStatus      → 100% になるまでポーリング
+GetSpiderResults     → 発見された URL を確認
+GetPassiveScanStatus → 残件 0 になるまでポーリング
+StartActiveScan      → url: "http://target", recurse: true
+GetActiveScanStatus  → 100% になるまでポーリング
+GetAlertsSummary     → baseUrl: "http://target"
+GetAlerts            → baseUrl: "http://target", riskId: "3" (High)
+GetAlerts            → baseUrl: "http://target", riskId: "2" (Medium)
+GetAlerts            → baseUrl: "http://target", riskId: "1" (Low)
+GetHtmlReport        → 最終レポートを生成
+```
+
+Active Scan では以下のような脆弱性が検出されます：
+- **High**: SQL インジェクション (`/users?id=`)、クロスサイトスクリプティング (`/search?q=`)
+- **Medium**: CSRF (`/login` のトークン欠如)、オープンリダイレクト (`/redirect?url=`)
+- **Low/Informational**: セキュリティヘッダーの欠如、Cookie の設定不備など
+
+### クリーンアップ
+
+```bash
+docker compose -f tests/docker/docker-compose.test.yml down -v
+```
 
 ## ライセンス
 

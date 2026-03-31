@@ -19,6 +19,16 @@ internal sealed class ZapApiClient
     }
 
     /// <summary>
+    /// Internal constructor for testing. Accepts a pre-configured HttpClient.
+    /// </summary>
+    internal ZapApiClient(HttpClient httpClient, string apiKey)
+    {
+        ArgumentNullException.ThrowIfNull(httpClient);
+        _apiKey = apiKey ?? "";
+        _http = httpClient;
+    }
+
+    /// <summary>
     /// Reconfigure the client with a new base URL and API key.
     /// Used by DockerComposeTools after starting the ZAP container.
     /// </summary>
@@ -201,8 +211,16 @@ internal sealed class ZapApiClient
     public async Task<string[]> GetContextListAsync(CancellationToken ct = default)
     {
         var json = await GetJsonAsync("/JSON/context/view/contextList/", ct);
-        var raw = json.GetProperty("contextList").GetString() ?? "[]";
-        // ZAP returns contextList as a string like "[Default Context, My Context]"
+        var contextList = json.GetProperty("contextList");
+
+        // ZAP >= 2.17.0 returns a JSON array; older versions return a string like "[Default Context, My Context]"
+        if (contextList.ValueKind == JsonValueKind.Array)
+        {
+            return contextList.EnumerateArray()
+                .Select(e => e.GetString() ?? "").ToArray();
+        }
+
+        var raw = contextList.GetString() ?? "[]";
         raw = raw.Trim('[', ']');
         if (string.IsNullOrWhiteSpace(raw)) return [];
         return raw.Split(',').Select(s => s.Trim()).ToArray();

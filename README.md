@@ -219,6 +219,124 @@ If you already have a ZAP instance running, pass connection details via environm
 
 > **Note:** ZAP settings (contexts, authentication, scan policies) are persisted in the `zap-home` Docker volume. You can stop and restart the container without losing configuration.
 
+## Try It Out (with the included vulnerable app)
+
+This repository includes an intentionally vulnerable web application for trying out ZAP scanning. The app contains common vulnerabilities (XSS, SQL Injection, CSRF, Open Redirect) so ZAP can detect real findings.
+
+### Setup
+
+```bash
+# Start ZAP and the vulnerable target app
+docker compose -f tests/docker/docker-compose.test.yml up -d --build
+
+# Wait until both containers are healthy
+docker compose -f tests/docker/docker-compose.test.yml ps
+```
+
+Then configure your MCP client to connect to this ZAP instance:
+
+```json
+{
+  "mcpServers": {
+    "zap": {
+      "command": "zap-mcp",
+      "env": {
+        "ZAP_BASE_URL": "http://localhost:8090",
+        "ZAP_API_KEY": "test-api-key-for-ci"
+      }
+    }
+  }
+}
+```
+
+> The vulnerable app is accessible at `http://target` from within the Docker network (used by ZAP), and at `http://localhost:8080` from your host machine.
+
+### Example 1: Quick Scan
+
+**Prompt to agent:**
+
+> Scan http://target for vulnerabilities. Run a spider crawl, wait for the passive scan to finish, then show me the alert summary and generate an HTML report.
+
+**Expected tool flow:**
+
+```
+GetVersion          → Verify ZAP connectivity
+StartSpider         → url: "http://target"
+GetSpiderStatus     → Poll until 100%
+GetPassiveScanStatus → Poll until 0 records remaining
+GetAlertsSummary    → baseUrl: "http://target"
+GetAlerts           → baseUrl: "http://target"
+GetHtmlReport       → Generate report
+```
+
+ZAP will discover pages like `/search`, `/login`, `/users`, `/about`, `/contact`, and the passive scan will report issues such as missing security headers and CSRF vulnerabilities.
+
+### Example 2: Authenticated Scan
+
+The `/admin` page requires login (username: `admin`, password: `password`). An authenticated scan lets ZAP access protected pages.
+
+**Prompt to agent:**
+
+> Set up an authenticated scan for http://target. The login form is at /login with fields "username" and "password" (credentials: admin / password). The logged-in indicator is "Welcome, admin". After configuring authentication, spider the site as the authenticated user and run an active scan.
+
+**Expected tool flow:**
+
+```
+CreateContext                   → contextName: "target-auth"
+IncludeInContext                → regex: "http://target.*"
+SetAuthenticationMethod         → contextId, authMethodName: "formBasedAuthentication",
+                                  authMethodConfigParams: "loginUrl=http://target/login&loginRequestData=username%3D%7B%25username%25%7D%26password%3D%7B%25password%25%7D"
+SetLoggedInIndicator            → loggedInIndicatorRegex: "Welcome, admin"
+CreateUser                      → contextId, name: "admin"
+SetAuthenticationCredentials    → contextId, userId, authCredentialsConfigParams: "username=admin&password=password"
+SetUserEnabled                  → contextId, userId, enabled: true
+SetForcedUser                   → contextId, userId
+SetForcedUserModeEnabled        → enabled: true
+StartSpider                     → url: "http://target", contextName: "target-auth"
+GetSpiderStatus                 → Poll until 100%
+GetPassiveScanStatus            → Poll until 0 records remaining
+StartActiveScan                 → url: "http://target"
+GetActiveScanStatus             → Poll until 100%
+GetAlertsSummary                → baseUrl: "http://target"
+GetAlerts                       → baseUrl: "http://target"
+SetForcedUserModeEnabled        → enabled: false
+```
+
+With authentication configured, ZAP can access `/admin` and test for vulnerabilities behind the login.
+
+### Example 3: Full Vulnerability Assessment
+
+**Prompt to agent:**
+
+> Perform a full vulnerability assessment of http://target. Crawl the site, run an active scan, then give me a detailed breakdown of all discovered vulnerabilities grouped by risk level.
+
+**Expected tool flow:**
+
+```
+StartSpider          → url: "http://target", recurse: true
+GetSpiderStatus      → Poll until 100%
+GetSpiderResults     → Review discovered URLs
+GetPassiveScanStatus → Poll until 0 records remaining
+StartActiveScan      → url: "http://target", recurse: true
+GetActiveScanStatus  → Poll until 100%
+GetAlertsSummary     → baseUrl: "http://target"
+GetAlerts            → baseUrl: "http://target", riskId: "3" (High)
+GetAlerts            → baseUrl: "http://target", riskId: "2" (Medium)
+GetAlerts            → baseUrl: "http://target", riskId: "1" (Low)
+GetHtmlReport        → Generate final report
+```
+
+The active scan will detect vulnerabilities including:
+- **High**: SQL Injection (`/users?id=`), Cross Site Scripting (`/search?q=`)
+- **Medium**: CSRF (missing tokens on `/login`), Open Redirect (`/redirect?url=`)
+- **Low/Informational**: Missing security headers, cookie issues, etc.
+
+### Cleanup
+
+```bash
+docker compose -f tests/docker/docker-compose.test.yml down -v
+```
+
 ## License
 
 [MIT](LICENSE)

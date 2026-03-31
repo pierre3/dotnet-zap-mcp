@@ -7,6 +7,7 @@ services:
   zap:
     image: ghcr.io/zaproxy/zaproxy:stable
     container_name: zap
+    user: "0:0"
     restart: "no"
     ports:
       - "127.0.0.1:8090:8090"

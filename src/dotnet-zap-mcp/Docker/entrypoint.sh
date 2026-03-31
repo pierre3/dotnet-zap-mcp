@@ -14,4 +14,11 @@ mkdir -p /zap/wrk/data/reports
 mkdir -p /zap/wrk/data/sessions
 mkdir -p /zap/wrk/data/contexts
 
+# Fix ownership of Docker named volumes (created as root by default).
+# The container must be started with user: "0:0" in docker-compose.
+if [ "$(id -u)" = "0" ]; then
+    chown -R 1000:1000 /zap/wrk/data /home/zap/.ZAP 2>/dev/null || true
+    exec setpriv --reuid=1000 --regid=1000 --init-groups -- "$@"
+fi
+
 exec "$@"
